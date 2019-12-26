@@ -57,15 +57,7 @@ object RestClient extends JsonSupport {
     )
     sendMessageRespFuture.map {
       case response @ HttpResponse(StatusCodes.OK, headers, entity, _) => {
-        val body: Future[String] = Unmarshal(entity).to[String]
-        body.onComplete {
-          case Success(res) => {
-            println(s"Status 200, Body: $res")
-          }
-          case Failure(smth) => {
-            println("Error occurred")
-          }
-        }
+        println(s"Status 200")
       }
       case _ => sys.error("Something wrong")
     }

@@ -84,7 +84,7 @@ object WebServer extends JsonSupport {
             entity(as[MessageEvent]) { event =>
               val saved: Future[Done] = saveEvent(event)
               onComplete(saved) { done =>
-                complete("Event has been saved")
+                complete(StatusCodes.OK, "Event has been saved")
               }
             }
           }
