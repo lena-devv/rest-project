@@ -1,4 +1,4 @@
-package com.epam.example;
+package com.epam.example.client
 
 object DomainModel {
 

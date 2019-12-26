@@ -1,26 +1,22 @@
-package com.epam.example
+package com.epam.example.server
 
 import akka.Done
 import akka.actor.ActorSystem
-import akka.http.scaladsl.server.RejectionHandler
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.{AuthorizationFailedRejection, ExceptionHandler, MethodRejection, MissingCookieRejection, Route, ValidationRejection}
+import akka.http.scaladsl.model.StatusCodes.{Forbidden, InternalServerError}
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
+import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
+import com.epam.example.client.DomainModel.MessageEvent
+import spray.json.DefaultJsonProtocol.jsonFormat4
 
 import scala.concurrent.Future
 import scala.io.StdIn
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import org.omg.CosNaming.NamingContextPackage.NotFound
-import spray.json.DefaultJsonProtocol._
-import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.server.Directives._
-import com.epam.example.DomainModel.MessageEvent
 
-object WebServer {
+import spray.json.DefaultJsonProtocol._
+import akka.http.scaladsl.server._
+
+object WebServer extends JsonSupport {
   // needed to run the route
   implicit val system = ActorSystem()
   implicit val materializer = ActorMaterializer()
