@@ -1,16 +1,13 @@
 package com.epam.example
 
-import scala.util.{ Failure, Success }
-import akka.actor.{Actor, ActorLogging, ActorSystem}
+import scala.util.{Failure, Success}
+import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpMethod, HttpMethods, HttpRequest, HttpResponse, StatusCodes}
-import akka.stream.{ActorMaterializer, ActorMaterializerSettings}
-import akka.pattern.pipe
-import akka.util.ByteString
+import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, StatusCodes}
+import akka.stream.ActorMaterializer
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
-import scala.io.StdIn
-import akka.http.scaladsl.model._
+import akka.http.scaladsl.unmarshalling.Unmarshal
 
 object RestClient {
 
@@ -23,22 +20,15 @@ object RestClient {
     responseFuture.map {
       case response @ HttpResponse(StatusCodes.OK, headers, entity, _) => {
         val headersStr: String = headers.map(header => s"${header.name()}: ${header.value()}").toList.mkString("\n")
-        println(s"entity: $entity, headers: $headersStr")
+        val body: Future[String] = Unmarshal(entity).to[String]
+        body.onComplete {
+          case Success(res) => println(s"Status 200, Body: $res, headers: $headersStr")
+          case Failure(_) => println("Error occurred")
+        }
       }
-      case _ => sys.error("something wrong")
+      case _ => sys.error("Something wrong")
     }
+
     responseFuture.onComplete(done => {system.terminate()})
-    /*responseFuture.onComplete {
-      case Success(res) => println(res)
-      case Failure(_)   => sys.error("something wrong")
-    }*/
   }
 }
-
-/*object RestClient {
-
-  def call(url: String): Unit = {
-
-  }
-
-}*/
