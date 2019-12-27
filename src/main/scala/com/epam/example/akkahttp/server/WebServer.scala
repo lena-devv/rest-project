@@ -13,7 +13,7 @@ import scala.concurrent.Future
 import scala.io.StdIn
 import spray.json.DefaultJsonProtocol._
 import akka.http.scaladsl.server._
-import com.epam.example.akkahttp.common.DomainModel.MessageEvent
+import com.epam.example.akkahttp.common.DomainModel.AppEvent
 import com.epam.example.akkahttp.common.JsonSupport
 
 object WebServer extends JsonSupport {
@@ -45,19 +45,19 @@ object WebServer extends JsonSupport {
         }
     }
   // formats for unmarshalling and marshalling
-  implicit val eventFormat = jsonFormat4(MessageEvent)
+  implicit val eventFormat = jsonFormat4(AppEvent)
 
 
-  var events: List[MessageEvent] = Nil
-  events = events :+ MessageEvent(1, "some text", "sender", List("to1", "to2"))
+  var events: List[AppEvent] = Nil
+  events = events :+ AppEvent(1, "some text", "sender", List("to1", "to2"))
 
   //TODO: https !!!!
 
   // (fake) async database query api
-  def fetchItem(itemId: Long): Future[Option[MessageEvent]] = Future {
+  def fetchItem(itemId: Long): Future[Option[AppEvent]] = Future {
     events.find(o => o.id == itemId)
   }
-  def saveEvent(event: MessageEvent): Future[Done] = {
+  def saveEvent(event: AppEvent): Future[Done] = {
     if (event != null) {
       events = events :+ event
     }
@@ -69,7 +69,7 @@ object WebServer extends JsonSupport {
       concat(
         get {
           pathPrefix("event" / LongNumber) { id =>
-            val optionalEvent: Future[Option[MessageEvent]] = fetchItem(id)
+            val optionalEvent: Future[Option[AppEvent]] = fetchItem(id)
             onSuccess(optionalEvent) {
               case Some(event) => complete(event)
               case None        => complete(StatusCodes.NotFound, "No such event!")
@@ -78,7 +78,7 @@ object WebServer extends JsonSupport {
         },
         post {
           path("event") {
-            entity(as[MessageEvent]) { event => {
+            entity(as[AppEvent]) { event => {
                   val saved: Future[Done] = saveEvent(event)
                   onComplete(saved) { _ => complete(StatusCodes.OK, "Event has been saved")
                 }

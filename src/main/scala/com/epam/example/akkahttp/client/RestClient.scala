@@ -4,8 +4,9 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.client.RequestBuilding.{Get, Post}
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
-import com.epam.example.akkahttp.common.DomainModel.MessageEvent
+import com.epam.example.akkahttp.common.DomainModel.AppEvent
 import com.epam.example.akkahttp.common.JsonSupport
 import spray.json.DefaultJsonProtocol.jsonFormat4
 import spray.json.RootJsonFormat
@@ -32,7 +33,7 @@ object RestClient extends JsonSupport {
     implicit val system: ActorSystem = ActorSystem()
     implicit val materializer: ActorMaterializer = ActorMaterializer()
     implicit val executionContext: ExecutionContextExecutor = system.dispatcher
-    implicit val eventJsonFormat: RootJsonFormat[MessageEvent] = jsonFormat4(MessageEvent)
+    implicit val eventJsonFormat: RootJsonFormat[AppEvent] = jsonFormat4(AppEvent)
 
     callGet()(executionContext, system, materializer, baseUrl)
 //    callPost()(executionContext, system, materializer, baseUrl)
@@ -44,7 +45,7 @@ object RestClient extends JsonSupport {
     val getMessageRespFuture: Future[HttpResponse] = Http().singleRequest(Get(url + "/event/" + id))
     getMessageRespFuture.map {
       case response @ HttpResponse(StatusCodes.OK, headers, entity, _) => {
-        val event: Future[MessageEvent] = json4sUnmarshaller[MessageEvent].apply(response.entity)
+        val event: Future[AppEvent] = Unmarshal(response).to[AppEvent]//json4sUnmarshaller[AppEvent].apply(response.entity)
         event.onComplete{
           case Success(res) => println("Received message: " + res)
           case Failure(err) => println(err)
@@ -57,7 +58,7 @@ object RestClient extends JsonSupport {
 
   def callPost()(implicit executionContext: ExecutionContext, actorSystem: ActorSystem, materializer: ActorMaterializer,
                  url: String) = {
-    val event = MessageEvent(3, "Message text", "Mike", List("Jane", "John"))
+    val event = AppEvent(3, "Message text", "Mike", List("Jane", "John"))
     val sendMessageRespFuture: Future[HttpResponse] = Http().singleRequest(Post(url + "/event", event))
     sendMessageRespFuture.map {
       case response @ HttpResponse(StatusCodes.OK, headers, entity, _) => println(s"Sent event successfully")
