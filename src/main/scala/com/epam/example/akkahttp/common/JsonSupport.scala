@@ -1,4 +1,4 @@
-package com.epam.example.server
+package com.epam.example.akkahttp.common
 
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import org.json4s.{DefaultFormats, Formats, native}

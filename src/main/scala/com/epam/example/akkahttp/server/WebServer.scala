@@ -1,4 +1,4 @@
-package com.epam.example.server
+package com.epam.example.akkahttp.server
 
 import akka.Done
 import akka.actor.ActorSystem
@@ -13,7 +13,8 @@ import scala.concurrent.Future
 import scala.io.StdIn
 import spray.json.DefaultJsonProtocol._
 import akka.http.scaladsl.server._
-import com.epam.example.client.DomainModel.MessageEvent
+import com.epam.example.akkahttp.common.DomainModel.MessageEvent
+import com.epam.example.akkahttp.common.JsonSupport
 
 object WebServer extends JsonSupport {
   // needed to run the route
@@ -64,26 +65,23 @@ object WebServer extends JsonSupport {
   }
 
   def main(args: Array[String]) {
-
     val route: Route =
       concat(
         get {
           pathPrefix("event" / LongNumber) { id =>
-            // there might be no item for a given id
-            val maybeItem: Future[Option[MessageEvent]] = fetchItem(id)
-
-            onSuccess(maybeItem) {
-              case Some(item) => complete(item)
-              case None       => complete(StatusCodes.NotFound, "No such event!")
+            val optionalEvent: Future[Option[MessageEvent]] = fetchItem(id)
+            onSuccess(optionalEvent) {
+              case Some(event) => complete(event)
+              case None        => complete(StatusCodes.NotFound, "No such event!")
             }
           }
         },
         post {
           path("event") {
-            entity(as[MessageEvent]) { event =>
-              val saved: Future[Done] = saveEvent(event)
-              onComplete(saved) { done =>
-                complete(StatusCodes.OK, "Event has been saved")
+            entity(as[MessageEvent]) { event => {
+                  val saved: Future[Done] = saveEvent(event)
+                  onComplete(saved) { _ => complete(StatusCodes.OK, "Event has been saved")
+                }
               }
             }
           }

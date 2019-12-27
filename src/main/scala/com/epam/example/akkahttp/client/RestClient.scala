@@ -1,11 +1,12 @@
-package com.epam.example.client
+package com.epam.example.akkahttp.client
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.client.RequestBuilding.{Get, Post}
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.stream.ActorMaterializer
-import com.epam.example.client.DomainModel.MessageEvent
+import com.epam.example.akkahttp.common.DomainModel.MessageEvent
+import com.epam.example.akkahttp.common.JsonSupport
 import spray.json.DefaultJsonProtocol.jsonFormat4
 import spray.json.RootJsonFormat
 

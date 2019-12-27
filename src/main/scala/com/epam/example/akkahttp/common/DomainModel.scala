@@ -1,4 +1,4 @@
-package com.epam.example.client
+package com.epam.example.akkahttp.common
 
 object DomainModel {
 
