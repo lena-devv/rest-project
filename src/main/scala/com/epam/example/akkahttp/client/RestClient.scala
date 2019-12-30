@@ -45,14 +45,17 @@ object RestClient extends JsonSupport {
     val httpExt: HttpExt = Http()
 
 
-    val githubClientHttpsContext: HttpsConnectionContext = initClientHttpsContext("keys/github-base64.crt")
-    val responseFuture = callGetWithHttps("https://github.com/", githubClientHttpsContext, httpExt)(executionContext, system, materializer)
+//    val githubClientHttpsContext: HttpsConnectionContext = initClientHttpsContext("keys/github-base64.crt")
+//    val responseFuture = callGetWithHttps("https://github.com/", githubClientHttpsContext, httpExt)(executionContext, system, materializer)
 
-//    val clientHttpsContext: HttpsConnectionContext = initClientHttpsContext("keys/endpoint-cert.crt")
-//    val responseFuture: Future[_] = callGet(baseUrl, clientHttpsContext, httpExt)(executionContext, system, materializer)
+    val clientHttpsContext: HttpsConnectionContext = initClientHttpsContext("keys/client/self-signed-localhost.crt")
+    val responseFuture: Future[_] = callGet(baseUrl, clientHttpsContext, httpExt)(executionContext, system, materializer)
 //    val responseFuture: Future[_] = callPost(baseUrl, clientHttpsContext, httpExt)(executionContext, system, materializer)
 
-    responseFuture.onComplete(_ => { system.terminate() })
+    responseFuture.onComplete(resp => {
+      println(resp)
+      system.terminate()
+    })
   }
 
   def initClientHttpsContext(certificateResourcePath: String): HttpsConnectionContext = {
@@ -96,18 +99,24 @@ object RestClient extends JsonSupport {
              (implicit executionContext: ExecutionContext, actorSystem: ActorSystem,
               materializer: ActorMaterializer): Future[_] = {
 
-    val id: Long = 3
+    val id: Long = 1
     val getMessageRespFuture: Future[HttpResponse] = httpExt.singleRequest(Get(url + "/event/" + id),
       connectionContext = clientHttpsContext)
     getMessageRespFuture.map {
       case response @ HttpResponse(StatusCodes.OK, headers, entity, _) => {
         val event: Future[AppEvent] = Unmarshal(response).to[AppEvent]
         event.onComplete{
-          case Success(res) => println("Received message: " + res)
-          case Failure(err) => println(err)
+          case Success(res) => {
+            println("Received message: " + res)
+          }
+          case Failure(err) => {
+            println(err)
+          }
         }
       }
-      case respError => println(s"Something wrong: $respError")
+      case respError => {
+        println(s"Something wrong: $respError")
+      }
     }
     getMessageRespFuture
   }

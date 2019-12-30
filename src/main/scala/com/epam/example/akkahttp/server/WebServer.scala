@@ -1,8 +1,10 @@
 package com.epam.example.akkahttp.server
 
+import java.security.{KeyStore, SecureRandom}
+
 import akka.Done
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
+import akka.http.scaladsl.{ConnectionContext, Http}
 import akka.http.scaladsl.model.StatusCodes.{Forbidden, InternalServerError}
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
@@ -15,6 +17,7 @@ import spray.json.DefaultJsonProtocol._
 import akka.http.scaladsl.server._
 import com.epam.example.akkahttp.common.DomainModel.AppEvent
 import com.epam.example.akkahttp.common.JsonSupport
+import javax.net.ssl.{KeyManagerFactory, SSLContext}
 
 object WebServer extends JsonSupport {
   // needed to run the route
@@ -88,8 +91,27 @@ object WebServer extends JsonSupport {
         }
       )
 
-    val bindingFuture = Http().bindAndHandle(route, "localhost", 8080)//, connectionContext = https)
-    println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")
+    val httpsContext: ConnectionContext = {
+
+      val ksStream = getClass.getClassLoader.getResourceAsStream("keys/server/self-signed-keystore.p12")
+      val ks = KeyStore.getInstance("PKCS12")
+      val password = "cert-pass".toCharArray
+      ks.load(ksStream, password)
+
+      val keyManagerFactory = KeyManagerFactory.getInstance("SunX509")
+      keyManagerFactory.init(ks, password)
+
+//      val alias = "cert-alias"
+      val context = SSLContext.getInstance("TLS")
+      context.init(keyManagerFactory.getKeyManagers, null, new SecureRandom)
+
+//      new HttpsConnectionContext(context)
+
+      ConnectionContext.https(context)
+    }
+
+    val bindingFuture = Http().bindAndHandle(route, "localhost", 8080, connectionContext = httpsContext)
+    println(s"Server online at https://localhost:8080/\nPress RETURN to stop...")
     StdIn.readLine() // let it run until user presses return
     bindingFuture
       .flatMap(_.unbind()) // trigger unbinding from the port
