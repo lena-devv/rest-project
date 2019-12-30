@@ -65,7 +65,7 @@ object RestClient extends JsonSupport {
     require(certStream ne null, s"SSL certificate not found!")
 
     val cert: Certificate = CertificateFactory.getInstance("X.509").generateCertificate(certStream)
-    certStore.setCertificateEntry("ca", cert)
+    certStore.setCertificateEntry("cert-alias", cert)
 
     val certManagerFactory = TrustManagerFactory.getInstance("SunX509")
     certManagerFactory.init(certStore)
