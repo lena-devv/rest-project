@@ -1,13 +1,18 @@
 package com.epam.example.akkahttp.client
 
+import java.io.InputStream
+import java.security.cert.{Certificate, CertificateFactory}
+import java.security.{KeyStore, SecureRandom}
+
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
+import akka.http.scaladsl.{Http, HttpExt, HttpsConnectionContext}
 import akka.http.scaladsl.client.RequestBuilding.{Get, Post}
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import com.epam.example.akkahttp.common.DomainModel.AppEvent
 import com.epam.example.akkahttp.common.JsonSupport
+import javax.net.ssl.{SSLContext, SSLParameters, TrustManagerFactory}
 import spray.json.DefaultJsonProtocol.jsonFormat4
 import spray.json.RootJsonFormat
 
@@ -15,10 +20,13 @@ import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}
 import spray.json.DefaultJsonProtocol._
 
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
+
 object RestClient extends JsonSupport {
 
   def main(args: Array[String]): Unit = {
-    var protocol = "http"
+    var protocol = "https"
     var host = "localhost"
     var port = "8080"
 
@@ -34,18 +42,66 @@ object RestClient extends JsonSupport {
     implicit val materializer: ActorMaterializer = ActorMaterializer()
     implicit val executionContext: ExecutionContextExecutor = system.dispatcher
     implicit val eventJsonFormat: RootJsonFormat[AppEvent] = jsonFormat4(AppEvent)
+    val httpExt: HttpExt = Http()
 
-    callGet()(executionContext, system, materializer, baseUrl)
-//    callPost()(executionContext, system, materializer, baseUrl)
+
+    val githubClientHttpsContext: HttpsConnectionContext = initClientHttpsContext("keys/github-base64.crt")
+    val responseFuture = callGetWithHttps("https://github.com/", githubClientHttpsContext, httpExt)(executionContext, system, materializer)
+
+//    val clientHttpsContext: HttpsConnectionContext = initClientHttpsContext("keys/endpoint-cert.crt")
+//    val responseFuture: Future[_] = callGet(baseUrl, clientHttpsContext, httpExt)(executionContext, system, materializer)
+//    val responseFuture: Future[_] = callPost(baseUrl, clientHttpsContext, httpExt)(executionContext, system, materializer)
+
+    responseFuture.onComplete(_ => { system.terminate() })
   }
 
-  def callGet()(implicit executionContext: ExecutionContext, actorSystem: ActorSystem, materializer: ActorMaterializer,
-                url: String) = {
-    val id: Long = 3
-    val getMessageRespFuture: Future[HttpResponse] = Http().singleRequest(Get(url + "/event/" + id))
+  def initClientHttpsContext(certificateResourcePath: String): HttpsConnectionContext = {
+    val certStore = KeyStore.getInstance(KeyStore.getDefaultType)
+    certStore.load(null, null)
+
+    val certStream: InputStream = getClass.getClassLoader.getResourceAsStream(certificateResourcePath)
+    require(certStream ne null, s"SSL certificate not found!")
+
+    val cert: Certificate = CertificateFactory.getInstance("X.509").generateCertificate(certStream)
+    certStore.setCertificateEntry("ca", cert)
+
+    val certManagerFactory = TrustManagerFactory.getInstance("SunX509")
+    certManagerFactory.init(certStore)
+
+    val context = SSLContext.getInstance("TLS")
+    context.init(null, certManagerFactory.getTrustManagers, new SecureRandom)
+
+    val params = new SSLParameters()
+    params.setEndpointIdentificationAlgorithm("https")
+
+    new HttpsConnectionContext(context, sslParameters = Some(params))
+  }
+
+  def callGetWithHttps(url: String, clientHttpsContext: HttpsConnectionContext, httpExt: HttpExt)
+                      (implicit executionContext: ExecutionContext, actorSystem: ActorSystem,
+                       materializer: ActorMaterializer) = {
+
+    val getMessageRespFuture: Future[HttpResponse] = httpExt.singleRequest(Get(url), connectionContext = clientHttpsContext)
     getMessageRespFuture.map {
       case response @ HttpResponse(StatusCodes.OK, headers, entity, _) => {
-        val event: Future[AppEvent] = Unmarshal(response).to[AppEvent]//json4sUnmarshaller[AppEvent].apply(response.entity)
+        println(response)
+      }
+      case respError =>
+        println(s"Something wrong: $respError")
+    }
+    getMessageRespFuture
+  }
+
+  def callGet(url: String, clientHttpsContext: HttpsConnectionContext, httpExt: HttpExt)
+             (implicit executionContext: ExecutionContext, actorSystem: ActorSystem,
+              materializer: ActorMaterializer): Future[_] = {
+
+    val id: Long = 3
+    val getMessageRespFuture: Future[HttpResponse] = httpExt.singleRequest(Get(url + "/event/" + id),
+      connectionContext = clientHttpsContext)
+    getMessageRespFuture.map {
+      case response @ HttpResponse(StatusCodes.OK, headers, entity, _) => {
+        val event: Future[AppEvent] = Unmarshal(response).to[AppEvent]
         event.onComplete{
           case Success(res) => println("Received message: " + res)
           case Failure(err) => println(err)
@@ -53,17 +109,20 @@ object RestClient extends JsonSupport {
       }
       case respError => println(s"Something wrong: $respError")
     }
-    getMessageRespFuture.onComplete(_ => { actorSystem.terminate() })
+    getMessageRespFuture
   }
 
-  def callPost()(implicit executionContext: ExecutionContext, actorSystem: ActorSystem, materializer: ActorMaterializer,
-                 url: String) = {
+  def callPost(url: String, clientHttpsContext: HttpsConnectionContext, httpExt: HttpExt)
+              (implicit executionContext: ExecutionContext, actorSystem: ActorSystem,
+               materializer: ActorMaterializer): Future[_] = {
+
     val event = AppEvent(3, "Message text", "Mike", List("Jane", "John"))
-    val sendMessageRespFuture: Future[HttpResponse] = Http().singleRequest(Post(url + "/event", event))
+    val sendMessageRespFuture: Future[HttpResponse] = httpExt.singleRequest(Post(url + "/event", event),
+      connectionContext = clientHttpsContext)
     sendMessageRespFuture.map {
       case response @ HttpResponse(StatusCodes.OK, headers, entity, _) => println(s"Sent event successfully")
       case _ => sys.error("Something wrong")
     }
-    sendMessageRespFuture.onComplete(_ => { actorSystem.terminate() })
+    sendMessageRespFuture
   }
 }
