@@ -83,24 +83,22 @@ object RestClient extends JsonSupport {
              (implicit executionContext: ExecutionContext, actorSystem: ActorSystem,
               materializer: ActorMaterializer): Future[_] = {
 
-    val id: Long = 1 //3
+    val id: Long = 1 //4 //3
     val getMessageRespFuture: Future[HttpResponse] = httpExt.singleRequest(Get(url + "/event/" + id),
       connectionContext = clientHttpsContext)
     getMessageRespFuture.map {
       case response @ HttpResponse(StatusCodes.OK, headers, entity, _) => {
         val event: Future[AppEvent] = Unmarshal(response).to[AppEvent]
         event.onComplete{
-          case Success(res) => {
+          case Success(res) =>
             log.info("Received message: " + res)
-          }
-          case Failure(err) => {
+
+          case Failure(err) =>
             log.error("Error occurred: ", err)
-          }
         }
       }
-      case respError => {
+      case respError =>
         log.info(s"Something wrong: $respError")
-      }
     }
     getMessageRespFuture
   }
@@ -113,7 +111,9 @@ object RestClient extends JsonSupport {
     val sendMessageRespFuture: Future[HttpResponse] = httpExt.singleRequest(Post(url + "/event", event),
       connectionContext = clientHttpsContext)
     sendMessageRespFuture.map {
-      case response @ HttpResponse(StatusCodes.OK, headers, entity, _) => log.info(s"Sent event successfully")
+      case response @ HttpResponse(StatusCodes.OK, headers, entity, _) =>
+        log.info(s"Sent event successfully")
+
       case _ => log.error("Something wrong")
     }
     sendMessageRespFuture
