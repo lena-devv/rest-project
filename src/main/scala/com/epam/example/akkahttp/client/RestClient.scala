@@ -99,7 +99,7 @@ object RestClient extends JsonSupport {
              (implicit executionContext: ExecutionContext, actorSystem: ActorSystem,
               materializer: ActorMaterializer): Future[_] = {
 
-    val id: Long = 1
+    val id: Long = 1 //3
     val getMessageRespFuture: Future[HttpResponse] = httpExt.singleRequest(Get(url + "/event/" + id),
       connectionContext = clientHttpsContext)
     getMessageRespFuture.map {
