@@ -11,50 +11,52 @@ import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
 import spray.json.DefaultJsonProtocol.jsonFormat4
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.io.StdIn
 import spray.json.DefaultJsonProtocol._
 import akka.http.scaladsl.server._
 import com.epam.example.akkahttp.common.DomainModel.AppEvent
 import com.epam.example.akkahttp.common.JsonSupport
+import com.typesafe.scalalogging.Logger
 import javax.net.ssl.{KeyManagerFactory, SSLContext}
+import spray.json.RootJsonFormat
 
 object WebServer extends JsonSupport {
-  // needed to run the route
-  implicit val system = ActorSystem()
-  implicit val materializer = ActorMaterializer()
-  // needed for the future map/flatmap in the end and future in fetchItem and saveOrder
-  implicit val executionContext = system.dispatcher
-  implicit def rejectionHandler = RejectionHandler.newBuilder()
+
+  val log: Logger = Logger(getClass.getName)
+
+  implicit val system: ActorSystem = ActorSystem()
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val executionContext: ExecutionContextExecutor = system.dispatcher
+  implicit val eventFormat:RootJsonFormat[AppEvent] = jsonFormat4(AppEvent)
+
+  implicit def rejectionHandler: RejectionHandler = RejectionHandler.newBuilder()
       .handle {
         case AuthorizationFailedRejection =>
+          log.error("The user is not authorized!")
           complete((Forbidden, "Not authorized!"))
       }
       .handle {
         case ValidationRejection(msg, _) =>
+          log.error("The validation was failed!")
           complete((InternalServerError, "Failed validation! " + msg))
       }
       .handleNotFound {
-        complete((StatusCodes.NotFound, "This resource not found!"))
+          complete((StatusCodes.NotFound, "This resource not found!"))
       }
       .result()
 
   implicit def exceptionHandler: ExceptionHandler =
     ExceptionHandler {
-      case _: ArithmeticException =>
+      case err: ArithmeticException =>
         extractUri { uri =>
-          println(s"Request to $uri could not be handled normally")
+          log.error(s"Request to $uri could not be handled normally", err)
           complete(HttpResponse(InternalServerError, entity = "Internal Server Error occurred"))
         }
     }
-  // formats for unmarshalling and marshalling
-  implicit val eventFormat = jsonFormat4(AppEvent)
-
 
   var events: List[AppEvent] = Nil
   events = events :+ AppEvent(1, "some text", "sender", List("to1", "to2"))
-
-  //TODO: https !!!!
 
   // (fake) async database query api
   def fetchItem(itemId: Long): Future[Option[AppEvent]] = Future {
@@ -74,16 +76,23 @@ object WebServer extends JsonSupport {
           pathPrefix("event" / LongNumber) { id =>
             val optionalEvent: Future[Option[AppEvent]] = fetchItem(id)
             onSuccess(optionalEvent) {
-              case Some(event) => complete(event)
-              case None        => complete(StatusCodes.NotFound, "No such event!")
+              case Some(event) =>
+                log.info(s"Found event with id=$id: $event")
+                complete(event)
+
+              case None =>
+                log.error(s"No such event with id: $id!")
+                complete(StatusCodes.NotFound, "No such event!")
             }
           }
         },
         post {
           path("event") {
             entity(as[AppEvent]) { event => {
-                  val saved: Future[Done] = saveEvent(event)
-                  onComplete(saved) { _ => complete(StatusCodes.OK, "Event has been saved")
+              val saved: Future[Done] = saveEvent(event)
+              onComplete(saved) { _ =>
+                  log.info(s"Saved event: $event")
+                  complete(StatusCodes.OK, "Event has been saved")
                 }
               }
             }
@@ -92,29 +101,31 @@ object WebServer extends JsonSupport {
       )
 
     val httpsContext: ConnectionContext = {
-
-      val ksStream = getClass.getClassLoader.getResourceAsStream("keys/server/self-signed-keystore.p12")
-      val ks = KeyStore.getInstance("PKCS12")
+      val pathToKeyStore = "keys/server/self-signed-keystore.p12"
       val password = "cert-pass".toCharArray
+      //      val alias = "cert-alias"
+
+      val ksStream = getClass.getClassLoader.getResourceAsStream(pathToKeyStore)
+      val ks = KeyStore.getInstance("PKCS12")
       ks.load(ksStream, password)
 
       val keyManagerFactory = KeyManagerFactory.getInstance("SunX509")
       keyManagerFactory.init(ks, password)
 
-//      val alias = "cert-alias"
       val context = SSLContext.getInstance("TLS")
       context.init(keyManagerFactory.getKeyManagers, null, new SecureRandom)
 
 //      new HttpsConnectionContext(context)
-
       ConnectionContext.https(context)
     }
 
     val bindingFuture = Http().bindAndHandle(route, "localhost", 8080, connectionContext = httpsContext)
-    println(s"Server online at https://localhost:8080/\nPress RETURN to stop...")
-    StdIn.readLine() // let it run until user presses return
-    bindingFuture
-      .flatMap(_.unbind()) // trigger unbinding from the port
-      .onComplete(_ => system.terminate()) // and shutdown when done
+    val codeToExit = "RETURN"
+    log.info(s"Server online at https://localhost:8080/\nPress $codeToExit to stop...")
+    if (StdIn.readLine().eq(codeToExit)) {
+      bindingFuture
+        .flatMap(_.unbind()) // trigger unbinding from the port
+        .onComplete(_ => system.terminate()) // and shutdown when done
+    }
   }
 }

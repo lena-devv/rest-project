@@ -12,6 +12,7 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import com.epam.example.akkahttp.common.DomainModel.AppEvent
 import com.epam.example.akkahttp.common.JsonSupport
+import com.typesafe.scalalogging.Logger
 import javax.net.ssl.{SSLContext, SSLParameters, TrustManagerFactory}
 import spray.json.DefaultJsonProtocol.jsonFormat4
 import spray.json.RootJsonFormat
@@ -20,10 +21,10 @@ import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}
 import spray.json.DefaultJsonProtocol._
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration._
 
 object RestClient extends JsonSupport {
+
+  val log: Logger = Logger(getClass.getName)
 
   def main(args: Array[String]): Unit = {
     var protocol = "https"
@@ -44,16 +45,14 @@ object RestClient extends JsonSupport {
     implicit val eventJsonFormat: RootJsonFormat[AppEvent] = jsonFormat4(AppEvent)
     val httpExt: HttpExt = Http()
 
+    val clientHttpsContext: HttpsConnectionContext =
+      initClientHttpsContext("keys/client/self-signed-localhost.crt")
 
-//    val githubClientHttpsContext: HttpsConnectionContext = initClientHttpsContext("keys/github-base64.crt")
-//    val responseFuture = callGetWithHttps("https://github.com/", githubClientHttpsContext, httpExt)(executionContext, system, materializer)
-
-    val clientHttpsContext: HttpsConnectionContext = initClientHttpsContext("keys/client/self-signed-localhost.crt")
     val responseFuture: Future[_] = callGet(baseUrl, clientHttpsContext, httpExt)(executionContext, system, materializer)
 //    val responseFuture: Future[_] = callPost(baseUrl, clientHttpsContext, httpExt)(executionContext, system, materializer)
 
     responseFuture.onComplete(resp => {
-      println(resp)
+      log.info(resp.toString)
       system.terminate()
     })
   }
@@ -80,21 +79,6 @@ object RestClient extends JsonSupport {
     new HttpsConnectionContext(context, sslParameters = Some(params))
   }
 
-  def callGetWithHttps(url: String, clientHttpsContext: HttpsConnectionContext, httpExt: HttpExt)
-                      (implicit executionContext: ExecutionContext, actorSystem: ActorSystem,
-                       materializer: ActorMaterializer) = {
-
-    val getMessageRespFuture: Future[HttpResponse] = httpExt.singleRequest(Get(url), connectionContext = clientHttpsContext)
-    getMessageRespFuture.map {
-      case response @ HttpResponse(StatusCodes.OK, headers, entity, _) => {
-        println(response)
-      }
-      case respError =>
-        println(s"Something wrong: $respError")
-    }
-    getMessageRespFuture
-  }
-
   def callGet(url: String, clientHttpsContext: HttpsConnectionContext, httpExt: HttpExt)
              (implicit executionContext: ExecutionContext, actorSystem: ActorSystem,
               materializer: ActorMaterializer): Future[_] = {
@@ -107,15 +91,15 @@ object RestClient extends JsonSupport {
         val event: Future[AppEvent] = Unmarshal(response).to[AppEvent]
         event.onComplete{
           case Success(res) => {
-            println("Received message: " + res)
+            log.info("Received message: " + res)
           }
           case Failure(err) => {
-            println(err)
+            log.error("Error occurred: ", err)
           }
         }
       }
       case respError => {
-        println(s"Something wrong: $respError")
+        log.info(s"Something wrong: $respError")
       }
     }
     getMessageRespFuture
@@ -129,8 +113,8 @@ object RestClient extends JsonSupport {
     val sendMessageRespFuture: Future[HttpResponse] = httpExt.singleRequest(Post(url + "/event", event),
       connectionContext = clientHttpsContext)
     sendMessageRespFuture.map {
-      case response @ HttpResponse(StatusCodes.OK, headers, entity, _) => println(s"Sent event successfully")
-      case _ => sys.error("Something wrong")
+      case response @ HttpResponse(StatusCodes.OK, headers, entity, _) => log.info(s"Sent event successfully")
+      case _ => log.error("Something wrong")
     }
     sendMessageRespFuture
   }
