@@ -73,6 +73,12 @@ object WebServer extends JsonSupport {
     val route: Route =
       concat(
         get {
+          pathPrefix("events") {
+            log.info(s"Show all events")
+            complete(events)
+          }
+        },
+        get {
           pathPrefix("event" / LongNumber) { id =>
             val optionalEvent: Future[Option[AppEvent]] = fetchItem(id)
             onSuccess(optionalEvent) {

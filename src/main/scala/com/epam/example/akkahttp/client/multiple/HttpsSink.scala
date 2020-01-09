@@ -60,15 +60,13 @@ class HttpsSink extends Sink with JsonSupport {
     val sendMessageRespFuture: Future[HttpResponse] = httpExt.singleRequest(req, connectionContext = clientHttpsContext)
     sendMessageRespFuture.map {
       case response @ HttpResponse(StatusCodes.OK, headers, entity, _) =>
-        log.info(s"Sent event successfully")
+        log.info(s"Sent event successfully: " + response)
 
       case err => {
         log.error("Something wrong: " + err)
       }
     }
-    sendMessageRespFuture.onComplete(resp => {
-      log.info(resp.toString)
-    })
+    sendMessageRespFuture.onComplete(resp => {})
   }
 
   override def close(httpConf: Config): Unit = {
