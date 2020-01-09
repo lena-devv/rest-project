@@ -46,10 +46,10 @@ object RestClient extends JsonSupport {
     val httpExt: HttpExt = Http()
 
     val clientHttpsContext: HttpsConnectionContext =
-      initClientHttpsContext("keys/client/self-signed-localhost.crt")
+      initClientHttpsContext("client/keys/self-signed-localhost.crt")
 
-    val responseFuture: Future[_] = callGet(baseUrl, clientHttpsContext, httpExt)(executionContext, system, materializer)
-//    val responseFuture: Future[_] = callPost(baseUrl, clientHttpsContext, httpExt)(executionContext, system, materializer)
+//    val responseFuture: Future[_] = callGet(baseUrl, clientHttpsContext, httpExt)(executionContext, system, materializer)
+    val responseFuture: Future[_] = callPost(baseUrl, clientHttpsContext, httpExt)(executionContext, system, materializer)
 
     responseFuture.onComplete(resp => {
       log.info(resp.toString)

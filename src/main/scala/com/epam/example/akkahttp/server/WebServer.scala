@@ -101,7 +101,7 @@ object WebServer extends JsonSupport {
       )
 
     val httpsContext: ConnectionContext = {
-      val pathToKeyStore = "keys/server/self-signed-keystore.p12"
+      val pathToKeyStore = "server/keys/self-signed-keystore.p12"
       val password = "cert-pass".toCharArray
       //      val alias = "cert-alias"
 
@@ -122,7 +122,7 @@ object WebServer extends JsonSupport {
     val bindingFuture = Http().bindAndHandle(route, "localhost", 8080, connectionContext = httpsContext)
     val codeToExit = "RETURN"
     log.info(s"Server online at https://localhost:8080/\nPress $codeToExit to stop...")
-    if (StdIn.readLine().eq(codeToExit)) {
+    if (StdIn.readLine().equals(codeToExit)) {
       bindingFuture
         .flatMap(_.unbind()) // trigger unbinding from the port
         .onComplete(_ => system.terminate()) // and shutdown when done
