@@ -9,13 +9,7 @@ class SmtpSink extends Sink {
 
   val log: Logger = Logger(getClass.getName)
 
-  override def init(): Unit = {
-
-  }
-
   override def connect(httpConf: Config): Unit = ???
-
-  override def createClient(httpConf: Config, ctx: Object, client: Object): Unit = ???
 
   override def write(httpConf: Config, event: AppEvent): Unit = ???
 

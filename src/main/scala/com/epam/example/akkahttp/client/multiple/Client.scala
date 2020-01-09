@@ -31,7 +31,7 @@ object Client {
     try {
       Thread.sleep(5000)
     } catch {
-      case e: Exception => {
+      case e => {
         log.error("Error occurred: " + e)
       }
     } finally {

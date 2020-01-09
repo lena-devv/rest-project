@@ -11,7 +11,7 @@ import akka.http.scaladsl.{Http, HttpExt, HttpsConnectionContext}
 import akka.stream.ActorMaterializer
 import com.epam.example.akkahttp.common.DomainModel.AppEvent
 import com.epam.example.akkahttp.common.JsonSupport
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigException}
 import com.typesafe.scalalogging.Logger
 import javax.net.ssl.{SSLContext, SSLParameters, TrustManagerFactory}
 import spray.json.DefaultJsonProtocol.jsonFormat4
@@ -19,6 +19,9 @@ import spray.json.RootJsonFormat
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import spray.json.DefaultJsonProtocol._
+
+import scala.util.{Failure, Success}
+
 
 class HttpsSink extends Sink with JsonSupport {
 
@@ -34,39 +37,38 @@ class HttpsSink extends Sink with JsonSupport {
   implicit var materializer: ActorMaterializer = _
   implicit var executionContext: ExecutionContextExecutor = _
 
-
-  override def init(): Unit = {
+  override def connect(httpConf: Config): Unit = {
     system = ActorSystem()
     materializer = ActorMaterializer()
     executionContext = system.dispatcher
     implicit val eventJsonFormat: RootJsonFormat[AppEvent] = jsonFormat4(AppEvent)
     httpExt = Http()
-    log.info("Created Https Client")
-  }
 
-  override def connect(httpConf: Config): Unit = {
-    clientHttpsContext = initClientHttpsContext(httpConf.getString("tls_cert"))
+    log.info("Created Https Client")
+    clientHttpsContext = initClientHttpsContext(httpConf)
     url = httpConf.getString("url")
     method = httpConf.getString("method")
-
-    // createClient()
   }
-
-  override def createClient(httpConf: Config, ctx: Object, client: Object): Unit = ???
 
   override def write(httpConf: Config, event: AppEvent): Unit = {
     // TODO: create connection once instead of single request
     val req: HttpRequest = if (method.equals("POST")) Post(url, event) else Put(url, event)
     val sendMessageRespFuture: Future[HttpResponse] = httpExt.singleRequest(req, connectionContext = clientHttpsContext)
-    sendMessageRespFuture.map {
-      case response @ HttpResponse(StatusCodes.OK, headers, entity, _) =>
-        log.info(s"Sent event successfully: " + response)
+    sendMessageRespFuture.onComplete {
+      case Success(response: HttpResponse) => {
+        response match {
+          case response@HttpResponse(StatusCodes.OK, headers, entity, _) =>
+            log.info(s"Sent event successfully: " + response)
 
-      case err => {
-        log.error("Something wrong: " + err)
+          case err: HttpResponse => {
+            log.error("Something wrong: " + err)
+          }
+        }
+      }
+      case Failure(err: Exception) => {
+        log.error("Error: " + err)
       }
     }
-    sendMessageRespFuture.onComplete(resp => {})
   }
 
   override def close(httpConf: Config): Unit = {
@@ -75,26 +77,36 @@ class HttpsSink extends Sink with JsonSupport {
   }
 
 
-  private def initClientHttpsContext(certificateResourcePath: String): HttpsConnectionContext = {
-    val certStore = KeyStore.getInstance(KeyStore.getDefaultType)
-    certStore.load(null, null)
+  private def initClientHttpsContext(httpConf: Config): HttpsConnectionContext = {
+    try {
+      val certificateResourcePath = httpConf.getString("tls_cert")
+      log.info("Protocol: HTTPS")
 
-    val certStream: InputStream = getClass.getClassLoader.getResourceAsStream(certificateResourcePath)
-    require(certStream ne null, s"SSL certificate not found!")
+      val certStore = KeyStore.getInstance(KeyStore.getDefaultType)
+      certStore.load(null, null)
 
-    val cert: Certificate = CertificateFactory.getInstance("X.509").generateCertificate(certStream)
-    val certificateAlias = "cert-alias"
-    certStore.setCertificateEntry(certificateAlias, cert)
+      val certStream: InputStream = getClass.getClassLoader.getResourceAsStream(certificateResourcePath)
+      require(certStream ne null, s"SSL certificate not found!")
 
-    val certManagerFactory = TrustManagerFactory.getInstance("SunX509")
-    certManagerFactory.init(certStore)
+      val cert: Certificate = CertificateFactory.getInstance("X.509").generateCertificate(certStream)
+      val certificateAlias = "cert-alias"
+      certStore.setCertificateEntry(certificateAlias, cert)
 
-    val context = SSLContext.getInstance("TLS")
-    context.init(null, certManagerFactory.getTrustManagers, new SecureRandom)
+      val certManagerFactory = TrustManagerFactory.getInstance("SunX509")
+      certManagerFactory.init(certStore)
 
-    val params = new SSLParameters()
-    params.setEndpointIdentificationAlgorithm("https")
+      val context = SSLContext.getInstance("TLS")
+      context.init(null, certManagerFactory.getTrustManagers, new SecureRandom)
 
-    new HttpsConnectionContext(context, sslParameters = Some(params))
+      val params = new SSLParameters()
+      params.setEndpointIdentificationAlgorithm("https")
+
+      new HttpsConnectionContext(context, sslParameters = Some(params))
+    } catch {
+      case e: ConfigException.Missing => {
+        log.info("Protocol: HTTP")
+        httpExt.createDefaultClientHttpsContext()
+      }
+    }
   }
 }
