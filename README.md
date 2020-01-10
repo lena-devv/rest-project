@@ -9,8 +9,13 @@ Windows:<br>
 ```openssl pkcs12 -export -in self-signed-localhost.crt -inkey localhost.key -out self-signed-keystore.p12 -passout pass:cert-pass -name cert-alias```
 
 <h3>Run app</h3>
-Run app with the command: 
+Run app with the command<br>
+Https notifications:
 ```
 java -Dconfig.resource=client/conf/https-client.conf ...
 ``` 
+Email notifications:
+```
+java -Dconfig.resource=client/conf/smtp-client.conf ...
+```
 application.conf is used by default
