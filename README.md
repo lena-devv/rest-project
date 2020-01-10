@@ -12,10 +12,10 @@ Windows:<br>
 Run app with the command<br>
 Https notifications:
 ```
-java -Dconfig.resource=client/conf/https-client.conf ...
+java -Dconfig.resource=client/conf/https-client.conf ... com.epam.example.akkahttp.client.multiple.Client
 ``` 
 Email notifications:
 ```
-java -Dconfig.resource=client/conf/smtp-client.conf ...
+java -Dconfig.resource=client/conf/smtp-client.conf ... com.epam.example.akkahttp.client.multiple.Client
 ```
 application.conf is used by default

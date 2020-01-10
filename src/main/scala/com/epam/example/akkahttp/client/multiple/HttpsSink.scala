@@ -14,7 +14,7 @@ import com.epam.example.akkahttp.common.JsonSupport
 import com.typesafe.config.{Config, ConfigException}
 import com.typesafe.scalalogging.Logger
 import javax.net.ssl.{SSLContext, SSLParameters, TrustManagerFactory}
-import spray.json.DefaultJsonProtocol.jsonFormat4
+import spray.json.DefaultJsonProtocol.jsonFormat3
 import spray.json.RootJsonFormat
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
@@ -41,7 +41,7 @@ class HttpsSink extends Sink with JsonSupport {
     system = ActorSystem()
     materializer = ActorMaterializer()
     executionContext = system.dispatcher
-    implicit val eventJsonFormat: RootJsonFormat[AppEvent] = jsonFormat4(AppEvent)
+    implicit val eventJsonFormat: RootJsonFormat[AppEvent] = jsonFormat3(AppEvent)
     httpExt = Http()
 
     log.info("Created Https Client")

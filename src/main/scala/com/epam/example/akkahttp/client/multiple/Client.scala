@@ -12,9 +12,7 @@ object Client {
   val log: Logger = Logger(getClass.getName)
 
   def main(args: Array[String]): Unit = {
-    val conf = ConfigFactory.load() //.load("application.conf") (by default)
-      .getConfig("com.epam.example")
-
+    val conf = ConfigFactory.load().getConfig("com.epam.example")
     val appName = conf.getString("app-name")
     log.info(s"'$appName' started")
 
@@ -24,7 +22,7 @@ object Client {
 
     for (i <- 1 to 1) {
       log.info("Try send " + i + "th message...")
-      val event = AppEvent(i, "Event #" + i, "Author", List("user-to#1", "user-to#2"))
+      val event = AppEvent(i, "Event #" + i, List("event param 1", "event param 2"))
       client.write(ConfigFactory.parseMap(Collections.singletonMap("param", i)), event)
     }
 

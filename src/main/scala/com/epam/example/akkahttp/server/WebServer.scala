@@ -9,7 +9,7 @@ import akka.http.scaladsl.model.StatusCodes.{Forbidden, InternalServerError}
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
-import spray.json.DefaultJsonProtocol.jsonFormat4
+import spray.json.DefaultJsonProtocol.jsonFormat3
 
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.io.StdIn
@@ -29,7 +29,7 @@ object WebServer extends JsonSupport {
   implicit val system: ActorSystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
-  implicit val eventFormat:RootJsonFormat[AppEvent] = jsonFormat4(AppEvent)
+  implicit val eventFormat:RootJsonFormat[AppEvent] = jsonFormat3(AppEvent)
 
   implicit def rejectionHandler: RejectionHandler = RejectionHandler.newBuilder()
       .handle {
@@ -57,7 +57,7 @@ object WebServer extends JsonSupport {
     }
 
   var events: List[AppEvent] = Nil
-  events = events :+ AppEvent(1, "some text", "sender", List("to1", "to2"))
+  events = events :+ AppEvent(1, "Some item was created!", List("item-name", "item-val"))
 
   // (fake) async database query api
   def fetchItem(itemId: Long): Future[Option[AppEvent]] = Future {

@@ -42,7 +42,7 @@ object RestClient extends JsonSupport {
     implicit val system: ActorSystem = ActorSystem()
     implicit val materializer: ActorMaterializer = ActorMaterializer()
     implicit val executionContext: ExecutionContextExecutor = system.dispatcher
-    implicit val eventJsonFormat: RootJsonFormat[AppEvent] = jsonFormat4(AppEvent)
+    implicit val eventJsonFormat: RootJsonFormat[AppEvent] = jsonFormat3(AppEvent)
     val httpExt: HttpExt = Http()
 
     val clientHttpsContext: HttpsConnectionContext =
@@ -107,7 +107,7 @@ object RestClient extends JsonSupport {
               (implicit executionContext: ExecutionContext, actorSystem: ActorSystem,
                materializer: ActorMaterializer): Future[_] = {
 
-    val event = AppEvent(3, "Message text", "Mike", List("Jane", "John"))
+    val event = AppEvent(3, "Message text", List("Jane", "John"))
     val sendMessageRespFuture: Future[HttpResponse] = httpExt.singleRequest(Post(url + "/event", event),
       connectionContext = clientHttpsContext)
     sendMessageRespFuture.map {
