@@ -37,7 +37,7 @@ class HttpsSink extends Sink with JsonSupport {
   implicit var materializer: ActorMaterializer = _
   implicit var executionContext: ExecutionContextExecutor = _
 
-  override def connect(httpConf: Config): Unit = {
+  override def init(httpConf: Config): Unit = {
     system = ActorSystem()
     materializer = ActorMaterializer()
     executionContext = system.dispatcher
@@ -51,7 +51,6 @@ class HttpsSink extends Sink with JsonSupport {
   }
 
   override def write(httpConf: Config, event: AppEvent): Unit = {
-    // TODO: create connection once instead of single request
     val req: HttpRequest = if (method.equals("POST")) Post(url, event) else Put(url, event)
     val sendMessageRespFuture: Future[HttpResponse] = httpExt.singleRequest(req, connectionContext = clientHttpsContext)
     sendMessageRespFuture.onComplete {
@@ -104,7 +103,7 @@ class HttpsSink extends Sink with JsonSupport {
       new HttpsConnectionContext(context, sslParameters = Some(params))
     } catch {
       case e: ConfigException.Missing => {
-        log.info("Protocol: HTTP")
+        log.info("Not found tls_cert property in config, so use protocol: HTTP")
         httpExt.createDefaultClientHttpsContext()
       }
     }

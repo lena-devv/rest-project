@@ -20,6 +20,7 @@ libraryDependencies ++= {
     "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
     
     // config
-    "com.typesafe" % "config" % "1.2.1"
+    "com.typesafe" % "config" % "1.2.1", 
+    "javax.mail" % "mail" % "1.4"
   )
 }

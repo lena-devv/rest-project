@@ -11,10 +11,11 @@ import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
 import spray.json.DefaultJsonProtocol.jsonFormat4
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.io.StdIn
 import spray.json.DefaultJsonProtocol._
 import akka.http.scaladsl.server._
+import scala.concurrent.duration._
 import com.epam.example.akkahttp.common.DomainModel.AppEvent
 import com.epam.example.akkahttp.common.JsonSupport
 import com.typesafe.scalalogging.Logger
@@ -129,9 +130,15 @@ object WebServer extends JsonSupport {
     val codeToExit = "RETURN"
     log.info(s"Server online at https://localhost:8080/\nPress $codeToExit to stop...")
     if (StdIn.readLine().equals(codeToExit)) {
-      bindingFuture
-        .flatMap(_.unbind()) // trigger unbinding from the port
-        .onComplete(_ => system.terminate()) // and shutdown when done
+      val onceAllConnectionsTerminated: Future[Http.HttpTerminated] =
+        Await.result(bindingFuture, 10.seconds)
+          .terminate(hardDeadline = 3.seconds)
+
+      // once all connections are terminated,
+      // - you can invoke coordinated shutdown to tear down the rest of the system:
+      onceAllConnectionsTerminated.flatMap { _ =>
+        system.terminate()
+      }
     }
   }
 }

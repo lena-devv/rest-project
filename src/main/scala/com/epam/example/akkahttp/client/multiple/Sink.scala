@@ -6,7 +6,7 @@ import com.typesafe.config.Config
 
 trait Sink {
 
-  def connect(httpConf: Config)
+  def init(httpConf: Config)
 
   def write(httpConf: Config, event: AppEvent)
 
