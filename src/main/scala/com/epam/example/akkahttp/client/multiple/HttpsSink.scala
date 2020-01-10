@@ -37,7 +37,7 @@ class HttpsSink extends Sink with JsonSupport {
   implicit var materializer: ActorMaterializer = _
   implicit var executionContext: ExecutionContextExecutor = _
 
-  override def init(httpConf: Config): Unit = {
+  override def init(conf: Config): Unit = {
     system = ActorSystem()
     materializer = ActorMaterializer()
     executionContext = system.dispatcher
@@ -45,12 +45,12 @@ class HttpsSink extends Sink with JsonSupport {
     httpExt = Http()
 
     log.info("Created Https Client")
-    clientHttpsContext = initClientHttpsContext(httpConf)
-    url = httpConf.getString("url")
-    method = httpConf.getString("method")
+    clientHttpsContext = initClientHttpsContext(conf)
+    url = conf.getString("url")
+    method = conf.getString("method")
   }
 
-  override def write(httpConf: Config, event: AppEvent): Unit = {
+  override def write(conf: Config, event: AppEvent): Unit = {
     val req: HttpRequest = if (method.equals("POST")) Post(url, event) else Put(url, event)
     val sendMessageRespFuture: Future[HttpResponse] = httpExt.singleRequest(req, connectionContext = clientHttpsContext)
     sendMessageRespFuture.onComplete {
@@ -76,9 +76,9 @@ class HttpsSink extends Sink with JsonSupport {
   }
 
 
-  private def initClientHttpsContext(httpConf: Config): HttpsConnectionContext = {
+  private def initClientHttpsContext(conf: Config): HttpsConnectionContext = {
     try {
-      val certificateResourcePath = httpConf.getString("tls_cert")
+      val certificateResourcePath = conf.getString("tls_cert")
       log.info("Protocol: HTTPS")
 
       val certStore = KeyStore.getInstance(KeyStore.getDefaultType)

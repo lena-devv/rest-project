@@ -6,9 +6,9 @@ import com.typesafe.config.Config
 
 trait Sink {
 
-  def init(httpConf: Config)
+  def init(conf: Config)
 
-  def write(httpConf: Config, event: AppEvent)
+  def write(conf: Config, event: AppEvent)
 
-  def close(httpConf: Config)
+  def close(conf: Config)
 }
