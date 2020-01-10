@@ -22,7 +22,7 @@ object Client {
     val client: Sink = SinkFactory.create(clientConf)
     client.init(clientConf)
 
-    for (i <- 1 to 3) {
+    for (i <- 1 to 1) {
       log.info("Try send " + i + "th message...")
       val event = AppEvent(i, "Event #" + i, "Author", List("user-to#1", "user-to#2"))
       client.write(ConfigFactory.parseMap(Collections.singletonMap("param", i)), event)
