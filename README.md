@@ -14,7 +14,7 @@ openssl req -x509 -sha256 -nodes -newkey rsa:2048 -days 365 -out self-signed-loc
 openssl pkcs12 -export -in self-signed-localhost.crt -inkey localhost.key -out self-signed-keystore.p12 -passout pass:cert-pass -name cert-alias
 ```
 
-<h3>Run app</h3>
+<b>Run app</b><br>
 Run app with the command<br>
 Https notifications:
 ```
